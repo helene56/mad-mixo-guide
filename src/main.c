@@ -8,41 +8,115 @@
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
 
-/* 1000 msec = 1 sec */
-#define SLEEP_TIME_MS   1000
+typedef void (*pre_mix_cb)(void);
+typedef void (*mix_cb)(int ml);
+typedef void (*post_mix_cb)();
 
-/* The devicetree node identifier for the "led0" alias. */
-#define LED0_NODE DT_ALIAS(led0)
+typedef struct
+{
+    const char *name;
+    pre_mix_cb on_pre_mix;
+    mix_cb on_mix;
+    post_mix_cb on_post_mix;
+    uint8_t danger_level;   // 0-255 (risk of disaster)
 
-/*
- * A build error on this line means your board is unsupported.
- * See the sample documentation for information on how to fix this.
- */
-static const struct gpio_dt_spec led = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
+} potion_recipes;
+
+void calibrate()
+{
+    printf("Calibrating pumps...\n");
+}
+
+void calibrate_quickly()
+{
+    printf("Calibrate only 1 pump...\n");
+}
+
+void pump_juice(int ml)
+{
+    printf("Pumping %d ml juice...\n", ml);
+}
+
+void pump_vodka(int ml)
+{
+    printf("Pumping %d ml vodka...\n", ml);
+}
+
+void pump_gin(int ml)
+{
+    printf("Pumping %d ml gin...\n", ml);
+}
+
+void pump_citrus()
+{
+    int citrus = 5;
+    printf("Pumping %d ml citrus...\n", citrus);
+}
+
+void pump_ingredient(int ml)
+{
+    
+}
+
+void stir()
+{
+    printf("Stirring..\n");
+}
+
+void stir_violently()
+{
+    printf("Stirring.. Violently.\n");
+}
+
+void execute_recipe(const potion_recipes recipes[], int index, int ml)
+{
+    
+    if (recipes[index].on_pre_mix)
+    {
+        recipes[index].on_pre_mix();
+    }
+    else
+    {
+        printf("Missing pre mix recipe. \n");
+    }
+    if (recipes[index].on_mix)
+    {
+        recipes[index].on_mix(ml);
+    }
+    else
+    {
+        printf("Missing mix recipe. \n");
+    }
+    if (recipes[index].on_post_mix)
+    {
+        recipes[index].on_post_mix();
+    }
+    else
+    {
+        printf("Missing post mix recipe. \n");
+    }
+   
+}
 
 int main(void)
 {
-	int ret;
-	bool led_state = true;
+    // recipes
+    const potion_recipes juice_recipe = { .on_mix = pump_juice, .on_post_mix = stir};
 
-	if (!gpio_is_ready_dt(&led)) {
-		return 0;
-	}
+    const potion_recipes vodka_mix_recipe = {.on_pre_mix = calibrate_quickly, .on_mix = pump_vodka, .on_post_mix = stir};
 
-	ret = gpio_pin_configure_dt(&led, GPIO_OUTPUT_ACTIVE);
-	if (ret < 0) {
-		return 0;
-	}
+    const potion_recipes sour_vodka_recipe = {.on_pre_mix = calibrate, .on_mix = pump_vodka, .on_post_mix = pump_citrus};
 
-	while (1) {
-		ret = gpio_pin_toggle_dt(&led);
-		if (ret < 0) {
-			return 0;
-		}
+    const potion_recipes gin_recipe = {.on_pre_mix = calibrate, .on_mix = pump_gin, .on_post_mix = stir_violently};
 
-		led_state = !led_state;
-		printf("LED state: %s\n", led_state ? "ON" : "OFF");
-		k_msleep(SLEEP_TIME_MS);
-	}
-	return 0;
+    potion_recipes recipes[] = {juice_recipe, vodka_mix_recipe, sour_vodka_recipe, gin_recipe};
+
+    // pour recipes
+    execute_recipe(recipes, 0, 50);
+
+    // change recipe!
+    recipes[0].on_pre_mix = calibrate_quickly;
+    recipes[0].on_post_mix = stir_violently;
+    printf("\n=== AFTER SWAPPING CALLBACKS ===\n");
+    execute_recipe(recipes, 0, 50);
 }
