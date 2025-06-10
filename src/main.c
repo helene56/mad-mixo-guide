@@ -7,8 +7,16 @@
 #include <stdio.h>
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
+#include <string.h>
+// user lib
+#include "../lib/chosen_drinks.h"
+#include "../lib/mood_states.h"
 
-enum drinks {VODKA, GIN, JUICE, LIME, TONIC};
+#define MADNESS_COUNTER 10
+
+// enum drinks {VODKA, GIN, JUICE, LIME, TONIC};
+// enum states {NORMAL, DEVIOUS, PANIC};
+enum states CURRENT_STATE = NORMAL;
 
 typedef void (*pre_mix_cb)(void);
 typedef void (*mix_cb)(void);
@@ -23,7 +31,6 @@ typedef struct
     uint8_t danger_level;   // 0-255 (risk of disaster)
 
 } potion_recipes;
-
 
 
 void pump_ingredient(int ml, enum drinks drink)
@@ -132,6 +139,9 @@ void mix_vodka_lime()
 {
     pump_ingredient(50, VODKA);
     pump_ingredient(10, LIME);
+    add_drink(VODKA);
+    add_drink(LIME);
+
 }
 
 void mix_gin_tonic()
@@ -139,6 +149,9 @@ void mix_gin_tonic()
     pump_ingredient(30, GIN);
     pump_ingredient(10, TONIC);
     pump_ingredient(5, LIME);
+    add_drink(GIN);
+    add_drink(TONIC);
+    add_drink(LIME);
 }
 
 
