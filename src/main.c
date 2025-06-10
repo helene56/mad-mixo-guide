@@ -8,9 +8,11 @@
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
 
+enum drinks {VODKA, GIN, JUICE, LIME, TONIC};
+
 typedef void (*pre_mix_cb)(void);
-typedef void (*mix_cb)(int ml);
-typedef void (*post_mix_cb)();
+typedef void (*mix_cb)(void);
+typedef void (*post_mix_cb)(void);
 
 typedef struct
 {
@@ -22,29 +24,42 @@ typedef struct
 
 } potion_recipes;
 
-void calibrate()
+
+
+void pump_ingredient(int ml, enum drinks drink)
 {
-    printf("Calibrating pumps...\n");
+    // NOTE: temp code to simulate selection of drinks
+    if (drink == VODKA)
+    {
+        printf("Pumping %d ml vodka..\n", ml);
+    }
+    else if (drink == GIN)
+    {
+        printf("Pumping %d ml gin..\n", ml);
+    }
+    else if (drink == JUICE)
+    {
+        printf("Pumping %d ml juice..\n", ml);
+    }
+    else if (drink == LIME)
+    {
+        printf("Pumping %d ml lime..\n", ml);
+    }
+    else if (drink == TONIC)
+    {
+        printf("Pumping %d ml tonic..\n", ml);
+    }
+
 }
 
-void calibrate_quickly()
+void stir(int seconds)
 {
-    printf("Calibrate only 1 pump...\n");
+    printf("Stirring for %d..\n", seconds);
 }
 
-void pump_juice(int ml)
+void stir_violently(int seconds)
 {
-    printf("Pumping %d ml juice...\n", ml);
-}
-
-void pump_vodka(int ml)
-{
-    printf("Pumping %d ml vodka...\n", ml);
-}
-
-void pump_gin(int ml)
-{
-    printf("Pumping %d ml gin...\n", ml);
+    printf("Stirring for %d.. Violently.\n", seconds);
 }
 
 void pump_citrus()
@@ -53,22 +68,7 @@ void pump_citrus()
     printf("Pumping %d ml citrus...\n", citrus);
 }
 
-void pump_ingredient(int ml)
-{
-    
-}
-
-void stir()
-{
-    printf("Stirring..\n");
-}
-
-void stir_violently()
-{
-    printf("Stirring.. Violently.\n");
-}
-
-void execute_recipe(const potion_recipes recipes[], int index, int ml)
+void execute_recipe(const potion_recipes recipes[], int index)
 {
     
     if (recipes[index].on_pre_mix)
@@ -81,7 +81,7 @@ void execute_recipe(const potion_recipes recipes[], int index, int ml)
     }
     if (recipes[index].on_mix)
     {
-        recipes[index].on_mix(ml);
+        recipes[index].on_mix();
     }
     else
     {
@@ -98,25 +98,53 @@ void execute_recipe(const potion_recipes recipes[], int index, int ml)
    
 }
 
+
+void calibrate()
+{
+    printf("Calibrating pumps...\n");
+}
+
+void calibrate_quickly()
+{
+    printf("Calibrate only 1 pump...\n");
+}
+
+void surprise_stir()
+{
+    // get temperature sensor value or maybe another sensor?
+    // use that to produce a random value 3 - 15 seconds
+    int random_val = 3;
+    stir(random_val);
+}
+
+void mix_vodka_lime()
+{
+    pump_ingredient(50, VODKA);
+    pump_ingredient(10, LIME);
+}
+
+void mix_gin_tonic()
+{
+    pump_ingredient(30, GIN);
+    pump_ingredient(10, TONIC);
+    pump_ingredient(5, LIME);
+}
+
+
+
 int main(void)
 {
     // recipes
-    const potion_recipes juice_recipe = { .on_mix = pump_juice, .on_post_mix = stir};
-
-    const potion_recipes vodka_mix_recipe = {.on_pre_mix = calibrate_quickly, .on_mix = pump_vodka, .on_post_mix = stir};
-
-    const potion_recipes sour_vodka_recipe = {.on_pre_mix = calibrate, .on_mix = pump_vodka, .on_post_mix = pump_citrus};
-
-    const potion_recipes gin_recipe = {.on_pre_mix = calibrate, .on_mix = pump_gin, .on_post_mix = stir_violently};
-
-    potion_recipes recipes[] = {juice_recipe, vodka_mix_recipe, sour_vodka_recipe, gin_recipe};
+    const potion_recipes vodka_lime_recipe = {.on_pre_mix = calibrate, .on_mix = mix_vodka_lime, .on_post_mix = pump_citrus};
+    const potion_recipes gin_recipe = {.on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir};
+    potion_recipes recipes[] = {vodka_lime_recipe, gin_recipe};
 
     // pour recipes
-    execute_recipe(recipes, 0, 50);
-
+    execute_recipe(recipes, 0);
+    execute_recipe(recipes, 1);
     // change recipe!
     recipes[0].on_pre_mix = calibrate_quickly;
-    recipes[0].on_post_mix = stir_violently;
+    recipes[0].on_post_mix = surprise_stir;
     printf("\n=== AFTER SWAPPING CALLBACKS ===\n");
-    execute_recipe(recipes, 0, 50);
+    execute_recipe(recipes, 0);
 }
