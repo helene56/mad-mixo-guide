@@ -4,6 +4,7 @@
 
 # build
 /build*/
+/debug_build/
 
 # cmake
 /CMakeFiles*/
