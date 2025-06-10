@@ -150,18 +150,39 @@ void mix_gin_tonic()
     pump_ingredient(5, LIME);
 }
 
+void helper_print_state(enum states current_state)
+{
 
+    switch ((int)current_state)
+    {
+    case 0 :
+        printf("Current state :::: NORMAL\n");
+        break;
+    case 1 :
+        printf("Current state :::: DEVIOUS\n");
+    case 2 :
+        printf("Current state :::: PANIC\n");
+    
+    default:
+        break;
+    }
+}
 
 int main(void)
 {
+    helper_print_state(CURRENT_STATE);
     // recipes
     const potion_recipes vodka_lime_recipe = {.on_pre_mix = calibrate, .on_mix = mix_vodka_lime, .on_post_mix = pump_citrus};
     const potion_recipes gin_recipe = {.on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir};
     potion_recipes recipes[] = {vodka_lime_recipe, gin_recipe};
 
+    
     // pour recipes
     execute_recipe(recipes, 0);
     execute_recipe(recipes, 1);
+
+    CURRENT_STATE = get_current_state();
+    helper_print_state(CURRENT_STATE);
     // change recipe!
     recipes[0].on_pre_mix = calibrate_quickly;
     recipes[0].on_post_mix = surprise_stir;

@@ -24,7 +24,7 @@ void add_drink(enum drinks new_drink)
 }
 
 // choose a new state based on chosen drinks
-enum states handle_drink_event()
+enum states get_current_state()
 {
     int sum_of_drinks = 0;
     size_t size_chosen_drinks = sizeof(chosen_drinks)/sizeof(chosen_drinks[0]);
@@ -33,7 +33,7 @@ enum states handle_drink_event()
         sum_of_drinks += (int)chosen_drinks[i];
     }
 
-    enum states state = (enum states)(sum_of_drinks % (size_chosen_drinks + 1));
+    enum states state = (enum states)(sum_of_drinks % (3));
 
     return state;
 }
