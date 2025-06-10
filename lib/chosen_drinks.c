@@ -6,7 +6,7 @@ static enum drinks chosen_drinks[MADNESS_COUNTER] = {0};
 
 
 // add drink to chosen_drinks
-void add_drink(enum drinks new_drink)
+void add_drink(enum drinks new_drink, int ml)
 {
     static enum drinks *drinks_ptr = chosen_drinks; // pointer to chosen_drinks[0]
     enum drinks *drinks_end = chosen_drinks + MADNESS_COUNTER;   // one past the last element

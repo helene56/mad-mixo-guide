@@ -7,7 +7,7 @@
 enum drinks {VODKA, GIN, JUICE, LIME, TONIC};
 
 enum states get_current_state();
-void add_drink(enum drinks new_drink);
+void add_drink(enum drinks new_drink, int ml);
 
 
 #endif // CHOSEN_DRINKS
