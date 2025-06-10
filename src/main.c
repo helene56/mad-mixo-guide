@@ -35,6 +35,7 @@ typedef struct
 
 void pump_ingredient(int ml, enum drinks drink)
 {
+    add_drink(drink);
     // NOTE: temp code to simulate selection of drinks
     if (drink == VODKA)
     {
@@ -139,8 +140,6 @@ void mix_vodka_lime()
 {
     pump_ingredient(50, VODKA);
     pump_ingredient(10, LIME);
-    add_drink(VODKA);
-    add_drink(LIME);
 
 }
 
@@ -149,9 +148,6 @@ void mix_gin_tonic()
     pump_ingredient(30, GIN);
     pump_ingredient(10, TONIC);
     pump_ingredient(5, LIME);
-    add_drink(GIN);
-    add_drink(TONIC);
-    add_drink(LIME);
 }
 
 
