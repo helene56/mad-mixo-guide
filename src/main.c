@@ -113,7 +113,18 @@ void surprise_stir()
 {
     // get temperature sensor value or maybe another sensor?
     // use that to produce a random value 3 - 15 seconds
-    int random_val = 3;
+    int random_val = 25; // get sensor value here
+    int offset = (random_val % 5) - 2;
+    if (random_val > 15)
+    {
+        random_val = 15;
+    }
+    else
+    {
+        random_val += offset;
+    }
+
+
     stir(random_val);
 }
 
@@ -147,4 +158,8 @@ int main(void)
     recipes[0].on_post_mix = surprise_stir;
     printf("\n=== AFTER SWAPPING CALLBACKS ===\n");
     execute_recipe(recipes, 0);
+
+    // if 'random' liquid has less than 'random' ml left in container
+    // enter panic mode
+    // panic mode should randomly replace callbacks
 }
