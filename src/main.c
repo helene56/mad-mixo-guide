@@ -8,11 +8,19 @@
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
 #include <string.h>
+#include <zephyr/drivers/uart.h>
 // user lib
 #include "../lib/chosen_drinks.h"
 #include "../lib/mood_states.h"
 
+const struct device *uart = DEVICE_DT_GET(DT_NODELABEL(uart0));
 
+static uint8_t tx_buf[] = {"Software replacement for LCD\r\n"
+                           "Please type 'lime' or 'vodka'\r\n"};
+
+#define RECEIVE_BUFF_SIZE 10
+static uint8_t rx_buf[RECEIVE_BUFF_SIZE] = {0};
+#define RECEIVE_TIMEOUT 100
 
 enum states CURRENT_STATE = NORMAL;
 
@@ -26,63 +34,94 @@ typedef struct
     pre_mix_cb on_pre_mix;
     mix_cb on_mix;
     post_mix_cb on_post_mix;
-    uint8_t danger_level;   // 0-255 (risk of disaster)
+    uint8_t danger_level; // 0-255 (risk of disaster)
 
 } potion_recipes;
 
-
-
-const char* get_drink_name(enum drinks d) 
+const char *get_drink_name(enum drinks d)
 {
-    switch(d) 
+    switch (d)
     {
-    case VODKA: return "vodka";
-    case GIN:   return "gin";
-    case JUICE: return "juice";
-    case LIME:  return "lime";
-    case TONIC: return "tonic";
+    case VODKA:
+        return "vodka";
+    case GIN:
+        return "gin";
+    case JUICE:
+        return "juice";
+    case LIME:
+        return "lime";
+    case TONIC:
+        return "tonic";
 
     default:
         return NULL;
-
     }
 }
+
+
+int get_drink_enum(char *drink_choice)
+{
+    if (strncmp(drink_choice, "vodka", strlen("vodka")) == 0)
+    {
+        return VODKA;
+    }
+    else if (strncmp(drink_choice, "gin", strlen("gin")) == 0)
+    {
+        return GIN;
+    }
+    else if (strncmp(drink_choice, "juice", strlen("juice")) == 0)
+    {
+        return JUICE;
+    }
+    else if (strncmp(drink_choice, "lime", strlen("lime")) == 0)
+    {
+        return LIME;
+    }
+    else if (strncmp(drink_choice, "tonic", strlen("tonic")) == 0)
+    {
+        return TONIC;
+    }
+    else
+    {
+        return -1;
+    }
+}
+
 
 
 void pump_ingredient(int ml, enum drinks drink)
 {
     add_drink(drink, ml);
     // NOTE: temp code to simulate selection of drinks
-    printf("Pumping %d ml %s..\n", ml, get_drink_name(drink));
-
+    printk("Pumping %d ml %s..\n", ml, get_drink_name(drink));
 }
 
 void stir(int seconds)
 {
-    printf("Stirring for %d..\n", seconds);
+    printk("Stirring for %d..\n", seconds);
 }
 
 void stir_violently(int seconds)
 {
-    printf("Stirring for %d.. Violently.\n", seconds);
+    printk("Stirring for %d.. Violently.\n", seconds);
 }
 
 void pump_citrus()
 {
     int citrus = 5;
-    printf("Pumping %d ml citrus...\n", citrus);
+    printk("Pumping %d ml citrus...\n", citrus);
 }
 
 void execute_recipe(const potion_recipes recipes[], int index)
 {
-    
+
     if (recipes[index].on_pre_mix)
     {
         recipes[index].on_pre_mix();
     }
     else
     {
-        printf("Missing pre mix recipe. \n");
+        printk("Missing pre mix recipe. \n");
     }
     if (recipes[index].on_mix)
     {
@@ -90,7 +129,7 @@ void execute_recipe(const potion_recipes recipes[], int index)
     }
     else
     {
-        printf("Missing mix recipe. \n");
+        printk("Missing mix recipe. \n");
     }
     if (recipes[index].on_post_mix)
     {
@@ -98,20 +137,18 @@ void execute_recipe(const potion_recipes recipes[], int index)
     }
     else
     {
-        printf("Missing post mix recipe. \n");
+        printk("Missing post mix recipe. \n");
     }
-   
 }
-
 
 void calibrate()
 {
-    printf("Calibrating pumps...\n");
+    printk("Calibrating pumps...\n");
 }
 
 void calibrate_quickly()
 {
-    printf("Calibrate only 1 pump...\n");
+    printk("Calibrate only 1 pump...\n");
 }
 
 void surprise_stir()
@@ -129,7 +166,6 @@ void surprise_stir()
         random_val += offset;
     }
 
-
     stir(random_val);
 }
 
@@ -137,7 +173,6 @@ void mix_vodka_lime()
 {
     pump_ingredient(50, VODKA);
     pump_ingredient(10, LIME);
-
 }
 
 void mix_gin_tonic()
@@ -152,23 +187,77 @@ void helper_print_state(enum states current_state)
 
     switch ((int)current_state)
     {
-    case 0 :
-        printf("Current state :::: NORMAL\n");
+    case 0:
+        printk("Current state :::: NORMAL\n");
         break;
-    case 1 :
-        printf("Current state :::: DEVIOUS\n");
-    case 2 :
-        printf("Current state :::: PANIC\n");
-    
+    case 1:
+        printk("Current state :::: DEVIOUS\n");
+    case 2:
+        printk("Current state :::: PANIC\n");
+
     default:
         break;
     }
 }
 
-
+static void uart_cb(const struct device *dev, struct uart_event *evt, void *user_data)
+{
+    switch (evt->type)
+    {
+    case UART_RX_RDY:
+        if ((evt->data.rx.len) > 1)
+        {
+            int drink = get_drink_enum(&evt->data.rx.buf[evt->data.rx.offset]);
+            printk("%s is a valid choice\n", get_drink_name((enum drinks) drink));
+            if (strncmp(&evt->data.rx.buf[evt->data.rx.offset], "lime", strlen("lime")) == 0)
+            {
+                printk("you typed lime!\n");
+            }
+            else if (strncmp(&evt->data.rx.buf[evt->data.rx.offset], "vodka", strlen("vodka")) == 0)
+            {
+                printk("you typed vodka\n");
+            }
+            else
+            {
+                printk("not valid.\n");
+            }
+        }
+        break;
+    case UART_RX_DISABLED:
+        uart_rx_enable(dev, rx_buf, sizeof rx_buf, RECEIVE_TIMEOUT);
+        break;
+    default:
+        break;
+    }
+}
 
 int main(void)
 {
+    int ret;
+    if (!device_is_ready(uart))
+    {
+        printk("UART device not ready\r\n");
+        return 1;
+    }
+
+    ret = uart_callback_set(uart, uart_cb, NULL);
+    if (ret)
+    {
+        return 1;
+    }
+
+    ret = uart_tx(uart, tx_buf, sizeof(tx_buf), SYS_FOREVER_US);
+    if (ret)
+    {
+        return 1;
+    }
+
+    ret = uart_rx_enable(uart, rx_buf, sizeof rx_buf, RECEIVE_TIMEOUT);
+    if (ret)
+    {
+        return 1;
+    }
+
     // char *drink_names[] = {"vodka", "gin", "juice", "lime", "tonic"};
     // select which drinks have been added
     // add later to uart or maybe even oled screen
@@ -180,7 +269,7 @@ int main(void)
         filled_containers[i].container_size = -1;
         filled_containers[i].leftover = -1;
     }
-    // user selected drinks have been added 
+    // user selected drinks have been added
     add_liquids(selected_liquids, 3);
 
     helper_print_state(CURRENT_STATE);
@@ -189,7 +278,6 @@ int main(void)
     const potion_recipes gin_recipe = {.on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir};
     potion_recipes recipes[] = {vodka_lime_recipe, gin_recipe};
 
-    
     // pour recipes
     execute_recipe(recipes, 0);
     execute_recipe(recipes, 1);
@@ -199,7 +287,7 @@ int main(void)
     // change recipe!
     recipes[0].on_pre_mix = calibrate_quickly;
     recipes[0].on_post_mix = surprise_stir;
-    printf("\n=== AFTER SWAPPING CALLBACKS ===\n");
+    printk("\n=== AFTER SWAPPING CALLBACKS ===\n");
     execute_recipe(recipes, 0);
 
     // if 'random' liquid has less than 'random' ml left in container
@@ -207,8 +295,7 @@ int main(void)
     // panic mode should randomly replace callbacks
     for (int i = 0; i < 3; ++i)
     {
-        printf("%s has %d ml left.\n", get_drink_name(filled_containers[i].name), 
-        filled_containers[i].leftover);
+        printk("%s has %d ml left.\n", get_drink_name(filled_containers[i].name),
+               filled_containers[i].leftover);
     }
-    
 }
