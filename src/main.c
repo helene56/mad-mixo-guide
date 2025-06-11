@@ -12,7 +12,7 @@
 #include "../lib/chosen_drinks.h"
 #include "../lib/mood_states.h"
 
-#define DRINK_CONTAINER 80; // ml
+
 
 enum states CURRENT_STATE = NORMAL;
 
@@ -31,12 +31,6 @@ typedef struct
 } potion_recipes;
 
 
-typedef struct
-{
-    const char *name;
-    int container_size;
-    int leftover;
-} liquid_containers;
 
 const char* get_drink_name(enum drinks d) 
 {
@@ -178,15 +172,16 @@ int main(void)
     // char *drink_names[] = {"vodka", "gin", "juice", "lime", "tonic"};
     // select which drinks have been added
     // add later to uart or maybe even oled screen
-    enum drinks selected_liquids[] = {LIME, JUICE, VODKA}; 
-    liquid_containers filled_containers[sizeof(selected_liquids)/sizeof(selected_liquids[0])];
-    for (int i = 0; i < sizeof(selected_liquids)/sizeof(selected_liquids[0]); ++i)
+    enum drinks selected_liquids[] = {LIME, JUICE, VODKA};
+    // initialize filled containers
+    for (int i = 0; i < MAX_NUM_OF_LIQUIDS; ++i)
     {
-        
-        filled_containers[i].name = get_drink_name(selected_liquids[i]);
-        filled_containers[i].container_size = DRINK_CONTAINER;
-        filled_containers[i].leftover = DRINK_CONTAINER;
+        filled_containers[i].name = -1;
+        filled_containers[i].container_size = -1;
+        filled_containers[i].leftover = -1;
     }
+    // user selected drinks have been added 
+    add_liquids(selected_liquids, 3);
 
     helper_print_state(CURRENT_STATE);
     // recipes
@@ -210,4 +205,10 @@ int main(void)
     // if 'random' liquid has less than 'random' ml left in container
     // enter panic mode
     // panic mode should randomly replace callbacks
+    for (int i = 0; i < 3; ++i)
+    {
+        printf("%s has %d ml left.\n", get_drink_name(filled_containers[i].name), 
+        filled_containers[i].leftover);
+    }
+    
 }
