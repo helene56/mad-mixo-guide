@@ -38,32 +38,28 @@ typedef struct
     int leftover;
 } liquid_containers;
 
+const char* get_drink_name(enum drinks d) 
+{
+    switch(d) 
+    {
+    case VODKA: return "vodka";
+    case GIN:   return "gin";
+    case JUICE: return "juice";
+    case LIME:  return "lime";
+    case TONIC: return "tonic";
+
+    default:
+        return NULL;
+
+    }
+}
 
 
 void pump_ingredient(int ml, enum drinks drink)
 {
     add_drink(drink, ml);
     // NOTE: temp code to simulate selection of drinks
-    if (drink == VODKA)
-    {
-        printf("Pumping %d ml vodka..\n", ml);
-    }
-    else if (drink == GIN)
-    {
-        printf("Pumping %d ml gin..\n", ml);
-    }
-    else if (drink == JUICE)
-    {
-        printf("Pumping %d ml juice..\n", ml);
-    }
-    else if (drink == LIME)
-    {
-        printf("Pumping %d ml lime..\n", ml);
-    }
-    else if (drink == TONIC)
-    {
-        printf("Pumping %d ml tonic..\n", ml);
-    }
+    printf("Pumping %d ml %s..\n", ml, get_drink_name(drink));
 
 }
 
@@ -175,21 +171,7 @@ void helper_print_state(enum states current_state)
     }
 }
 
-const char* get_drink_name(enum drinks d) 
-{
-    switch(d) 
-    {
-    case VODKA: return "vodka";
-    case GIN:   return "gin";
-    case JUICE: return "juice";
-    case LIME:  return "lime";
-    case TONIC: return "tonic";
 
-    default:
-        return NULL;
-
-    }
-}
 
 int main(void)
 {
