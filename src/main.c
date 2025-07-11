@@ -12,8 +12,21 @@
 // user lib
 #include "../lib/chosen_drinks.h"
 #include "../lib/mood_states.h"
+// lvgl
+#include <lvgl.h>
+// display
+#include <zephyr/drivers/display.h>
+// encoder
+#include <lvgl_input_device.h>
+// logging
+#include <zephyr/logging/log.h>
+
+#define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
+LOG_MODULE_REGISTER(app);
 
 const struct device *uart = DEVICE_DT_GET(DT_NODELABEL(uart0));
+static const struct device *lvgl_encoder =
+    DEVICE_DT_GET(DT_COMPAT_GET_ANY_STATUS_OKAY(zephyr_lvgl_encoder_input));
 
 static uint8_t tx_buf[] = {"Software replacement for LCD\r\n"
                            "Please type 'lime' or 'vodka'\r\n"};
@@ -21,8 +34,10 @@ static uint8_t tx_buf[] = {"Software replacement for LCD\r\n"
 #define RECEIVE_BUFF_SIZE 10
 static uint8_t rx_buf[RECEIVE_BUFF_SIZE] = {0};
 #define RECEIVE_TIMEOUT 100
-
+static bool confirmed = false;
 enum states CURRENT_STATE = NORMAL;
+
+static lv_group_t *g;
 
 typedef void (*pre_mix_cb)(void);
 typedef void (*mix_cb)(void);
@@ -58,26 +73,25 @@ const char *get_drink_name(enum drinks d)
     }
 }
 
-
 int get_drink_enum(char *drink_choice)
 {
-    if (strncmp(drink_choice, "vodka", strlen("vodka")) == 0)
+    if (strcmp(drink_choice, "vodka") == 0)
     {
         return VODKA;
     }
-    else if (strncmp(drink_choice, "gin", strlen("gin")) == 0)
+    else if (strcmp(drink_choice, "gin") == 0)
     {
         return GIN;
     }
-    else if (strncmp(drink_choice, "juice", strlen("juice")) == 0)
+    else if (strcmp(drink_choice, "juice") == 0)
     {
         return JUICE;
     }
-    else if (strncmp(drink_choice, "lime", strlen("lime")) == 0)
+    else if (strcmp(drink_choice, "lime") == 0)
     {
         return LIME;
     }
-    else if (strncmp(drink_choice, "tonic", strlen("tonic")) == 0)
+    else if (strcmp(drink_choice, "tonic") == 0)
     {
         return TONIC;
     }
@@ -86,8 +100,6 @@ int get_drink_enum(char *drink_choice)
         return -1;
     }
 }
-
-
 
 void pump_ingredient(int ml, enum drinks drink)
 {
@@ -205,17 +217,33 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
     switch (evt->type)
     {
     case UART_RX_RDY:
-        if ((evt->data.rx.len) > 1)
+        if (evt->data.rx.len >= RECEIVE_BUFF_SIZE)
         {
+            printk("Error: Received message too long!\n");
+            return;
+        }
+        if ((evt->data.rx.len) > 0)
+        {
+            rx_buf[evt->data.rx.len] = '\0'; // ensure string is properly terminated
             int drink = get_drink_enum(&evt->data.rx.buf[evt->data.rx.offset]);
-            printk("%s is a valid choice\n", get_drink_name((enum drinks) drink));
-            if (strncmp(&evt->data.rx.buf[evt->data.rx.offset], "lime", strlen("lime")) == 0)
+            if (drink > -1)
             {
-                printk("you typed lime!\n");
+                const char *drink_name = get_drink_name((enum drinks)drink);
+
+                printk("%s is a valid choice\n", drink_name);
+                // add to filled_containers
+                add_liquid((enum drinks)drink);
             }
-            else if (strncmp(&evt->data.rx.buf[evt->data.rx.offset], "vodka", strlen("vodka")) == 0)
+            else if (strcmp(&evt->data.rx.buf[evt->data.rx.offset], "confirm") == 0)
             {
-                printk("you typed vodka\n");
+                printk("confirmed drink containers\n");
+                confirmed = true;
+                // here should no more liquied be added
+                // for (int i = 0; i < 3; ++i)
+                // {
+                //     printk("%s has %d ml left.\n", get_drink_name(filled_containers[i].name),
+                //            filled_containers[i].leftover);
+                // }
             }
             else
             {
@@ -231,52 +259,113 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
     }
 }
 
+static lv_obj_t *list1;
+// todo: add button to encoder
+static void event_handler(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t *obj = lv_event_get_target_obj(e);
+    if (code == LV_EVENT_CLICKED)
+    {
+        LV_UNUSED(obj);
+        LV_LOG_USER("Clicked: %s", lv_list_get_button_text(list1, obj));
+    }
+}
+void lv_example_list_1(void)
+{
+
+    g = lv_group_create();
+    lv_group_set_default(g);
+    lv_indev_t *encoder_indev = lvgl_input_get_indev(lvgl_encoder);
+    lv_indev_set_group(encoder_indev, g);
+
+    /*Create a list*/
+    list1 = lv_list_create(lv_screen_active());
+    lv_group_add_obj(g, list1);
+    lv_obj_set_size(list1, lv_pct(100), lv_pct(100));
+    lv_obj_center(list1);
+    // set style
+    static lv_style_t style;
+    lv_style_init(&style);
+    lv_style_set_border_width(&style, 0);
+    lv_obj_add_style(list1, &style, 0);
+    /*Add buttons to the list*/
+    lv_obj_t *btn;
+    // buttons
+    const char *buttons[] = {"New", "Open", "Save", "Delete", "Edit", "Bluetooth", "Navigation"};
+    const void *icons[] = {LV_SYMBOL_FILE, LV_SYMBOL_DIRECTORY, LV_SYMBOL_SAVE, LV_SYMBOL_CLOSE,
+                           LV_SYMBOL_EDIT, LV_SYMBOL_BLUETOOTH, LV_SYMBOL_GPS};
+    for (int i = 0; i < 7; i++)
+    {
+        btn = lv_list_add_button(list1, icons[i], buttons[i]);
+        lv_obj_set_style_text_font(btn, &lv_font_montserrat_24, 0);
+        lv_obj_set_size(btn, lv_pct(100), lv_pct(30));
+        // lv_obj_update_layout(btn); // to get height
+        lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
+        lv_obj_set_style_pad_top(btn, 42 - 12, 0); // Add 10px padding at the top
+    }
+}
+
 int main(void)
 {
-    int ret;
-    if (!device_is_ready(uart))
-    {
-        printk("UART device not ready\r\n");
-        return 1;
-    }
 
-    ret = uart_callback_set(uart, uart_cb, NULL);
-    if (ret)
+    // configure display
+    const struct device *display_dev;
+    display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
+    if (!device_is_ready(display_dev))
     {
-        return 1;
+        LOG_ERR("Device not ready, aborting.");
+        return 0;
     }
+    // table test
+    lv_example_list_1();
+    lv_timer_handler();
+    display_blanking_off(display_dev);
 
-    ret = uart_tx(uart, tx_buf, sizeof(tx_buf), SYS_FOREVER_US);
-    if (ret)
-    {
-        return 1;
-    }
+    // int ret;
+    // if (!device_is_ready(uart))
+    // {
+    //     printk("UART device not ready\r\n");
+    //     return 1;
+    // }
 
-    ret = uart_rx_enable(uart, rx_buf, sizeof rx_buf, RECEIVE_TIMEOUT);
-    if (ret)
-    {
-        return 1;
-    }
+    // ret = uart_callback_set(uart, uart_cb, NULL);
+    // if (ret)
+    // {
+    //     return 1;
+    // }
+
+    // ret = uart_tx(uart, tx_buf, sizeof(tx_buf), SYS_FOREVER_US);
+    // if (ret)
+    // {
+    //     return 1;
+    // }
+
+    // ret = uart_rx_enable(uart, rx_buf, sizeof rx_buf, RECEIVE_TIMEOUT);
+    // if (ret)
+    // {
+    //     return 1;
+    // }
 
     // char *drink_names[] = {"vodka", "gin", "juice", "lime", "tonic"};
     // select which drinks have been added
     // add later to uart or maybe even oled screen
-    enum drinks selected_liquids[] = {LIME, JUICE, VODKA};
+    // enum drinks selected_liquids[] = {LIME, JUICE, VODKA};
     // initialize filled containers
-    for (int i = 0; i < MAX_NUM_OF_LIQUIDS; ++i)
-    {
-        filled_containers[i].name = -1;
-        filled_containers[i].container_size = -1;
-        filled_containers[i].leftover = -1;
-    }
+
     // user selected drinks have been added
-    add_liquids(selected_liquids, 3);
+    // add_liquids(selected_liquids, 3);
 
     helper_print_state(CURRENT_STATE);
     // recipes
     const potion_recipes vodka_lime_recipe = {.on_pre_mix = calibrate, .on_mix = mix_vodka_lime, .on_post_mix = pump_citrus};
     const potion_recipes gin_recipe = {.on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir};
     potion_recipes recipes[] = {vodka_lime_recipe, gin_recipe};
+
+    // while(!confirmed)
+    // {
+
+    // }
 
     // pour recipes
     execute_recipe(recipes, 0);
@@ -297,5 +386,11 @@ int main(void)
     {
         printk("%s has %d ml left.\n", get_drink_name(filled_containers[i].name),
                filled_containers[i].leftover);
+    }
+
+    while (1)
+    {
+        lv_timer_handler();
+        k_sleep(K_MSEC(10));
     }
 }
