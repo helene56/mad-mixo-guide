@@ -3,7 +3,7 @@
 #include "chosen_drinks.h"
 
 static enum drinks chosen_drinks[MADNESS_COUNTER] = {0};
-liquid_containers filled_containers[MAX_NUM_OF_LIQUIDS];
+liquid_containers filled_containers[MAX_NUM_OF_LIQUIDS]  = {0};
 
 // subtract from liquid container
 void subtract_liquid(enum drinks drink, int ml)
@@ -62,5 +62,21 @@ void add_liquids(enum drinks liquids[], size_t num_liquids)
         filled_containers[i].name = liquids[i];
         filled_containers[i].container_size = DRINK_CONTAINER;
         filled_containers[i].leftover = DRINK_CONTAINER;
+    }
+}
+
+void add_liquid(enum drinks liquid)
+{
+
+    for (int i = 0; i < MAX_NUM_OF_LIQUIDS; ++i)
+    {
+        if (filled_containers[i].container_size == 0)
+        {
+            filled_containers[i].name = liquid;
+            filled_containers[i].container_size = DRINK_CONTAINER;
+            filled_containers[i].leftover = DRINK_CONTAINER;
+            return;
+        }
+
     }
 }

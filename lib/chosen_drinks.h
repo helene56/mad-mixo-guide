@@ -23,6 +23,6 @@ enum states get_current_state();
 void add_drink(enum drinks new_drink, int ml);
 void add_liquids(enum drinks liquids[], size_t num_of_liquids);
 void subtract_liquid(enum drinks drink, int ml);
-
+void add_liquid(enum drinks liquid);
 
 #endif // CHOSEN_DRINKS
