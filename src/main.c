@@ -39,13 +39,37 @@ static uint8_t rx_buf[RECEIVE_BUFF_SIZE] = {0};
 static bool confirmed = false;
 enum states CURRENT_STATE = NORMAL;
 
+enum drink_states
+{
+    PREMIX,
+    MIX,
+    AFTERMIX
+};
+enum drink_states CURRENT_MIX = PREMIX;
+
 static lv_group_t *g;
 lv_indev_t *button_indev;
 lv_indev_data_t *button_data;
 
-typedef void (*pre_mix_cb)(void);
-typedef void (*mix_cb)(void);
-typedef void (*post_mix_cb)(void);
+static lv_obj_t *list1;
+static lv_obj_t *drink_status_label;
+
+// screens
+static lv_obj_t *scr_2;
+// progress bar
+static lv_obj_t *bar;
+
+typedef struct
+{
+    potion_recipes *user_recipe;
+    lv_event_t *user_event;
+} timer_user_data;
+
+static timer_user_data my_user_data;
+
+typedef void (*pre_mix_cb)(lv_event_t *e);
+typedef void (*mix_cb)(lv_event_t *e);
+typedef void (*post_mix_cb)(lv_event_t *e);
 
 typedef struct
 {
@@ -110,30 +134,43 @@ void pump_ingredient(int ml, enum drinks drink)
     add_drink(drink, ml);
     // NOTE: temp code to simulate selection of drinks
     printk("Pumping %d ml %s..\n", ml, get_drink_name(drink));
+    char buffer[32]; // Make sure it's big enough
+    snprintf(buffer, sizeof(buffer), "Pumping %d ml %s..\n", ml, get_drink_name(drink));
+    lv_label_set_text(drink_status_label, buffer);
 }
 
 void stir(int seconds)
 {
     printk("Stirring for %d..\n", seconds);
+    // Create buffer and format the string into it
+    char buffer[32]; // Make sure it's big enough
+    snprintf(buffer, sizeof(buffer), "Stirring for %d..\n", seconds);
+    lv_label_set_text(drink_status_label, buffer);
 }
 
 void stir_violently(int seconds)
 {
     printk("Stirring for %d.. Violently.\n", seconds);
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "Stirring for %d.. Violently.\n", seconds);
+    lv_label_set_text(drink_status_label, buffer);
 }
 
 void pump_citrus()
 {
     int citrus = 5;
     printk("Pumping %d ml citrus...\n", citrus);
+    char buffer[32];
+    snprintf(buffer, sizeof(buffer), "Pumping %d ml citrus...\n", citrus);
+    lv_label_set_text(drink_status_label, buffer);
 }
 
-void execute_recipe(const potion_recipes recipes[], int index)
+void execute_recipe(const potion_recipes recipes[], int index, lv_event_t *e)
 {
 
     if (recipes[index].on_pre_mix)
     {
-        recipes[index].on_pre_mix();
+        recipes[index].on_pre_mix(e);
     }
     else
     {
@@ -141,7 +178,7 @@ void execute_recipe(const potion_recipes recipes[], int index)
     }
     if (recipes[index].on_mix)
     {
-        recipes[index].on_mix();
+        recipes[index].on_mix(e);
     }
     else
     {
@@ -149,7 +186,7 @@ void execute_recipe(const potion_recipes recipes[], int index)
     }
     if (recipes[index].on_post_mix)
     {
-        recipes[index].on_post_mix();
+        recipes[index].on_post_mix(e);
     }
     else
     {
@@ -157,17 +194,69 @@ void execute_recipe(const potion_recipes recipes[], int index)
     }
 }
 
-void calibrate()
+void my_timer(lv_timer_t *timer)
+{
+    /* Use the user_data */
+    static bool drink_finished = false;
+    timer_user_data *user_data = lv_timer_get_user_data(timer);
+    lv_event_t *event = user_data->user_event;
+    printf("my_timer called\n");
+    // printf("Timer call: recipe = %p, mix = %d\n", user_data->user_recipe, CURRENT_MIX);
+    if (CURRENT_MIX == MIX)
+    {
+        if (user_data->user_recipe->on_mix)
+        {
+            user_data->user_recipe->on_mix(event);
+            lv_bar_set_value(bar, 66, LV_ANIM_ON);
+        }
+        CURRENT_MIX = AFTERMIX;
+    }
+    else if (CURRENT_MIX == AFTERMIX && !drink_finished)
+    {
+        if (user_data->user_recipe->on_post_mix)
+        {
+            user_data->user_recipe->on_post_mix(event);
+            lv_bar_set_value(bar, 93, LV_ANIM_ON);
+            drink_finished = true;
+        }
+    }
+    else if (drink_finished)
+    {
+        lv_label_set_text(drink_status_label, "Drink finished");
+        lv_bar_set_value(bar, 100, LV_ANIM_ON);
+    }
+}
+
+void execute_one_recipe(const potion_recipes *recipe, lv_event_t *e)
+{
+    my_user_data.user_event = e;
+    my_user_data.user_recipe = recipe;
+
+    lv_scr_load(scr_2);
+    lv_timer_t *timer = lv_timer_create(my_timer, 2500, &my_user_data);
+
+    if (recipe->on_pre_mix)
+    {
+        recipe->on_pre_mix(e);
+        CURRENT_MIX = MIX;
+        lv_bar_set_value(bar, 33, LV_ANIM_ON);
+    }
+    lv_timer_set_repeat_count(timer, 3);
+}
+
+void calibrate(lv_event_t *e)
 {
     printk("Calibrating pumps...\n");
+    lv_label_set_text(drink_status_label, "Calibrating pumps...\n");
 }
 
-void calibrate_quickly()
+void calibrate_quickly(lv_event_t *e)
 {
     printk("Calibrate only 1 pump...\n");
+    lv_label_set_text(drink_status_label, "Calibrate only 1 pump...\n");
 }
 
-void surprise_stir()
+void surprise_stir(lv_event_t *e)
 {
     // get temperature sensor value or maybe another sensor?
     // use that to produce a random value 3 - 15 seconds
@@ -185,13 +274,13 @@ void surprise_stir()
     stir(random_val);
 }
 
-void mix_vodka_lime()
+void mix_vodka_lime(lv_event_t *e)
 {
     pump_ingredient(50, VODKA);
     pump_ingredient(10, LIME);
 }
 
-void mix_gin_tonic()
+void mix_gin_tonic(lv_event_t *e)
 {
     pump_ingredient(30, GIN);
     pump_ingredient(10, TONIC);
@@ -216,68 +305,62 @@ void helper_print_state(enum states current_state)
     }
 }
 
-static void uart_cb(const struct device *dev, struct uart_event *evt, void *user_data)
+void create_new_screen()
 {
-    switch (evt->type)
-    {
-    case UART_RX_RDY:
-        if (evt->data.rx.len >= RECEIVE_BUFF_SIZE)
-        {
-            printk("Error: Received message too long!\n");
-            return;
-        }
-        if ((evt->data.rx.len) > 0)
-        {
-            rx_buf[evt->data.rx.len] = '\0'; // ensure string is properly terminated
-            int drink = get_drink_enum(&evt->data.rx.buf[evt->data.rx.offset]);
-            if (drink > -1)
-            {
-                const char *drink_name = get_drink_name((enum drinks)drink);
-
-                printk("%s is a valid choice\n", drink_name);
-                // add to filled_containers
-                add_liquid((enum drinks)drink);
-            }
-            else if (strcmp(&evt->data.rx.buf[evt->data.rx.offset], "confirm") == 0)
-            {
-                printk("confirmed drink containers\n");
-                confirmed = true;
-                // here should no more liquied be added
-                // for (int i = 0; i < 3; ++i)
-                // {
-                //     printk("%s has %d ml left.\n", get_drink_name(filled_containers[i].name),
-                //            filled_containers[i].leftover);
-                // }
-            }
-            else
-            {
-                printk("not valid.\n");
-            }
-        }
-        break;
-    case UART_RX_DISABLED:
-        uart_rx_enable(dev, rx_buf, sizeof rx_buf, RECEIVE_TIMEOUT);
-        break;
-    default:
-        break;
-    }
+    scr_2 = lv_obj_create(NULL);
+    drink_status_label = lv_label_create(scr_2);
+    lv_obj_set_width(drink_status_label, 200);
+    lv_obj_align(drink_status_label, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_text_font(drink_status_label, &lv_font_montserrat_24, 0);
 }
 
-static lv_obj_t *list1;
-
-void lv_make_drink_screen()
+void create_progress_bar()
 {
+    static lv_style_t style_bg;
+    static lv_style_t style_indic;
+
+    lv_style_init(&style_bg);
+    lv_style_set_border_color(&style_bg, lv_palette_main(LV_PALETTE_BLUE));
+    lv_style_set_border_width(&style_bg, 2);
+    lv_style_set_pad_all(&style_bg, 6); /*To make the indicator smaller*/
+    lv_style_set_radius(&style_bg, 6);
+    lv_style_set_anim_duration(&style_bg, 1000);
+
+    lv_style_init(&style_indic);
+    lv_style_set_bg_opa(&style_indic, LV_OPA_COVER);
+    lv_style_set_bg_color(&style_indic, lv_palette_main(LV_PALETTE_BLUE));
+    lv_style_set_radius(&style_indic, 3);
+
+    bar = lv_bar_create(scr_2);
+    lv_obj_remove_style_all(bar); /*To have a clean start*/
+    lv_obj_add_style(bar, &style_bg, 0);
+    lv_obj_add_style(bar, &style_indic, LV_PART_INDICATOR);
+
+    lv_obj_set_size(bar, 200, 20);
+    lv_obj_center(bar);
+    lv_obj_align_to(bar, NULL, LV_ALIGN_BOTTOM_MID, 0, -20);
+    lv_bar_set_value(bar, 0, LV_ANIM_ON);
+}
+
+void lv_make_drink_screen(lv_event_t *e)
+{
+    lv_obj_t *btn = lv_event_get_target(e);
+    potion_recipes *data = lv_obj_get_user_data(btn);
+    execute_one_recipe(data, e);
+    lv_scr_load(scr_2);
 }
 
 static void event_handler(lv_event_t *e)
 {
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t *obj = lv_event_get_target_obj(e);
+    lv_obj_t *btn = lv_event_get_target(e);
     if (code == LV_EVENT_PRESSED)
     {
         // LV_UNUSED(obj);
         LV_LOG_USER("Clicked: %s", lv_list_get_button_text(list1, obj));
         LOG_INF("Clicked: %s", lv_list_get_button_text(list1, obj));
+        lv_make_drink_screen(e);
     }
 }
 
@@ -311,6 +394,7 @@ void lv_example_list_1(potion_recipes *recipes, size_t recipes_size)
         lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_pad_top(btn, 42 - 12, 0); // Add 10px padding at the top
         lv_group_add_obj(g, btn);
+        lv_obj_set_user_data(btn, &recipes[i]); // Explicitly set
         lv_obj_add_event_cb(btn, event_handler, LV_EVENT_PRESSED, NULL);
     }
 }
@@ -328,40 +412,17 @@ int main(void)
     }
     // add recipes
     // recipes
-    const potion_recipes vodka_lime_recipe = {.name = "vodka lime", .on_pre_mix = calibrate, .on_mix = mix_vodka_lime, .on_post_mix = pump_citrus};
-    const potion_recipes gin_recipe = {.name = "gin tonic", .on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir};
-    const potion_recipes unknown_recipe = {.name = "Aw@k3#d", .on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir};
-    potion_recipes recipes[] = {vodka_lime_recipe, gin_recipe, unknown_recipe};
+    static const potion_recipes vodka_lime_recipe = {.name = "vodka lime", .on_pre_mix = calibrate, .on_mix = mix_vodka_lime, .on_post_mix = pump_citrus};
+    static const potion_recipes gin_recipe = {.name = "gin tonic", .on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir};
+    static const potion_recipes unknown_recipe = {.name = "Aw@k3#d", .on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir};
+    static potion_recipes recipes[] = {vodka_lime_recipe, gin_recipe, unknown_recipe};
     // table test
     size_t recipes_size = sizeof(recipes) / sizeof(recipes[0]);
+    create_new_screen();
+    create_progress_bar();
     lv_example_list_1(recipes, recipes_size);
     lv_timer_handler();
     display_blanking_off(display_dev);
-
-    // int ret;
-    // if (!device_is_ready(uart))
-    // {
-    //     printk("UART device not ready\r\n");
-    //     return 1;
-    // }
-
-    // ret = uart_callback_set(uart, uart_cb, NULL);
-    // if (ret)
-    // {
-    //     return 1;
-    // }
-
-    // ret = uart_tx(uart, tx_buf, sizeof(tx_buf), SYS_FOREVER_US);
-    // if (ret)
-    // {
-    //     return 1;
-    // }
-
-    // ret = uart_rx_enable(uart, rx_buf, sizeof rx_buf, RECEIVE_TIMEOUT);
-    // if (ret)
-    // {
-    //     return 1;
-    // }
 
     // char *drink_names[] = {"vodka", "gin", "juice", "lime", "tonic"};
     // select which drinks have been added
