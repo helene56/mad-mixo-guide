@@ -385,9 +385,6 @@ int main(void)
     while (1)
     {
         lv_timer_handler();
-        // debug read button
-        // bool val = gpio_pin_get_dt(&button);
-        // printk("button: %d\n", val);
         k_sleep(K_MSEC(10));
     }
 }
