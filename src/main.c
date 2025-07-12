@@ -165,34 +165,6 @@ void pump_citrus()
     lv_label_set_text(drink_status_label, buffer);
 }
 
-void execute_recipe(const potion_recipes recipes[], int index, lv_event_t *e)
-{
-
-    if (recipes[index].on_pre_mix)
-    {
-        recipes[index].on_pre_mix(e);
-    }
-    else
-    {
-        printk("Missing pre mix recipe. \n");
-    }
-    if (recipes[index].on_mix)
-    {
-        recipes[index].on_mix(e);
-    }
-    else
-    {
-        printk("Missing mix recipe. \n");
-    }
-    if (recipes[index].on_post_mix)
-    {
-        recipes[index].on_post_mix(e);
-    }
-    else
-    {
-        printk("Missing post mix recipe. \n");
-    }
-}
 
 void my_timer(lv_timer_t *timer)
 {
