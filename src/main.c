@@ -21,6 +21,8 @@
 // logging
 #include <zephyr/logging/log.h>
 
+#include <zephyr/input/input.h>
+
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 LOG_MODULE_REGISTER(app);
 
@@ -38,6 +40,8 @@ static bool confirmed = false;
 enum states CURRENT_STATE = NORMAL;
 
 static lv_group_t *g;
+lv_indev_t *button_indev;
+lv_indev_data_t *button_data;
 
 typedef void (*pre_mix_cb)(void);
 typedef void (*mix_cb)(void);
@@ -260,18 +264,24 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
 }
 
 static lv_obj_t *list1;
-// todo: add button to encoder
+
+void lv_make_drink_screen()
+{
+}
+
 static void event_handler(lv_event_t *e)
 {
     lv_event_code_t code = lv_event_get_code(e);
     lv_obj_t *obj = lv_event_get_target_obj(e);
-    if (code == LV_EVENT_CLICKED)
+    if (code == LV_EVENT_PRESSED)
     {
-        LV_UNUSED(obj);
+        // LV_UNUSED(obj);
         LV_LOG_USER("Clicked: %s", lv_list_get_button_text(list1, obj));
+        LOG_INF("Clicked: %s", lv_list_get_button_text(list1, obj));
     }
 }
-void lv_example_list_1(void)
+
+void lv_example_list_1(potion_recipes *recipes, size_t recipes_size)
 {
 
     g = lv_group_create();
@@ -292,17 +302,16 @@ void lv_example_list_1(void)
     /*Add buttons to the list*/
     lv_obj_t *btn;
     // buttons
-    const char *buttons[] = {"New", "Open", "Save", "Delete", "Edit", "Bluetooth", "Navigation"};
-    const void *icons[] = {LV_SYMBOL_FILE, LV_SYMBOL_DIRECTORY, LV_SYMBOL_SAVE, LV_SYMBOL_CLOSE,
-                           LV_SYMBOL_EDIT, LV_SYMBOL_BLUETOOTH, LV_SYMBOL_GPS};
-    for (int i = 0; i < 7; i++)
+    for (int i = 0; i < recipes_size; i++)
     {
-        btn = lv_list_add_button(list1, icons[i], buttons[i]);
+        btn = lv_list_add_button(list1, NULL, recipes[i].name);
         lv_obj_set_style_text_font(btn, &lv_font_montserrat_24, 0);
         lv_obj_set_size(btn, lv_pct(100), lv_pct(30));
         // lv_obj_update_layout(btn); // to get height
         lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
         lv_obj_set_style_pad_top(btn, 42 - 12, 0); // Add 10px padding at the top
+        lv_group_add_obj(g, btn);
+        lv_obj_add_event_cb(btn, event_handler, LV_EVENT_PRESSED, NULL);
     }
 }
 
@@ -317,8 +326,15 @@ int main(void)
         LOG_ERR("Device not ready, aborting.");
         return 0;
     }
+    // add recipes
+    // recipes
+    const potion_recipes vodka_lime_recipe = {.name = "vodka lime", .on_pre_mix = calibrate, .on_mix = mix_vodka_lime, .on_post_mix = pump_citrus};
+    const potion_recipes gin_recipe = {.name = "gin tonic", .on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir};
+    const potion_recipes unknown_recipe = {.name = "Aw@k3#d", .on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir};
+    potion_recipes recipes[] = {vodka_lime_recipe, gin_recipe, unknown_recipe};
     // table test
-    lv_example_list_1();
+    size_t recipes_size = sizeof(recipes) / sizeof(recipes[0]);
+    lv_example_list_1(recipes, recipes_size);
     lv_timer_handler();
     display_blanking_off(display_dev);
 
@@ -357,10 +373,6 @@ int main(void)
     // add_liquids(selected_liquids, 3);
 
     helper_print_state(CURRENT_STATE);
-    // recipes
-    const potion_recipes vodka_lime_recipe = {.on_pre_mix = calibrate, .on_mix = mix_vodka_lime, .on_post_mix = pump_citrus};
-    const potion_recipes gin_recipe = {.on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir};
-    potion_recipes recipes[] = {vodka_lime_recipe, gin_recipe};
 
     // while(!confirmed)
     // {
@@ -368,16 +380,16 @@ int main(void)
     // }
 
     // pour recipes
-    execute_recipe(recipes, 0);
-    execute_recipe(recipes, 1);
+    // execute_recipe(recipes, 0);
+    // execute_recipe(recipes, 1);
 
-    CURRENT_STATE = get_current_state();
-    helper_print_state(CURRENT_STATE);
-    // change recipe!
-    recipes[0].on_pre_mix = calibrate_quickly;
-    recipes[0].on_post_mix = surprise_stir;
-    printk("\n=== AFTER SWAPPING CALLBACKS ===\n");
-    execute_recipe(recipes, 0);
+    // CURRENT_STATE = get_current_state();
+    // helper_print_state(CURRENT_STATE);
+    // // change recipe!
+    // recipes[0].on_pre_mix = calibrate_quickly;
+    // recipes[0].on_post_mix = surprise_stir;
+    // printk("\n=== AFTER SWAPPING CALLBACKS ===\n");
+    // execute_recipe(recipes, 0);
 
     // if 'random' liquid has less than 'random' ml left in container
     // enter panic mode
@@ -391,6 +403,9 @@ int main(void)
     while (1)
     {
         lv_timer_handler();
+        // debug read button
+        // bool val = gpio_pin_get_dt(&button);
+        // printk("button: %d\n", val);
         k_sleep(K_MSEC(10));
     }
 }
