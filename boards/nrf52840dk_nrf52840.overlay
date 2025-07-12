@@ -75,6 +75,17 @@
         };
     };
 
+    buttons: buttons {
+        status = "okay";
+        compatible = "gpio-keys";
+        debounce-interval-ms = <50>;
+        qdec_btn: btn_pin {
+            gpios = <&gpio1 4 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>;
+            label = "Encoder switch interrupt";
+            zephyr,code = <INPUT_BTN_0>;
+        };
+    };
+
     qdec2: qdec {
         status = "okay";
         compatible = "gpio-qdec";
@@ -90,8 +101,7 @@
         status = "okay";
         compatible = "zephyr,lvgl-encoder-input";
         rotation-input-code = <INPUT_REL_WHEEL>;
-        // button-input-code = <INPUT_KEY_0>;
-        input = <&qdec2>;
+        button-input-code = <INPUT_BTN_0>;
     };
 
 
@@ -101,7 +111,6 @@
 
     aliases {
         backlight = &backlight0;
-
     };
 
 };
