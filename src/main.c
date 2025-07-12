@@ -101,33 +101,6 @@ const char *get_drink_name(enum drinks d)
     }
 }
 
-int get_drink_enum(char *drink_choice)
-{
-    if (strcmp(drink_choice, "vodka") == 0)
-    {
-        return VODKA;
-    }
-    else if (strcmp(drink_choice, "gin") == 0)
-    {
-        return GIN;
-    }
-    else if (strcmp(drink_choice, "juice") == 0)
-    {
-        return JUICE;
-    }
-    else if (strcmp(drink_choice, "lime") == 0)
-    {
-        return LIME;
-    }
-    else if (strcmp(drink_choice, "tonic") == 0)
-    {
-        return TONIC;
-    }
-    else
-    {
-        return -1;
-    }
-}
 
 void pump_ingredient(int ml, enum drinks drink)
 {
