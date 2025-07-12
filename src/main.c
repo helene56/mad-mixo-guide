@@ -369,33 +369,9 @@ int main(void)
     lv_timer_handler();
     display_blanking_off(display_dev);
 
-    // char *drink_names[] = {"vodka", "gin", "juice", "lime", "tonic"};
-    // select which drinks have been added
-    // add later to uart or maybe even oled screen
-    // enum drinks selected_liquids[] = {LIME, JUICE, VODKA};
-    // initialize filled containers
-
-    // user selected drinks have been added
-    // add_liquids(selected_liquids, 3);
 
     helper_print_state(CURRENT_STATE);
 
-    // while(!confirmed)
-    // {
-
-    // }
-
-    // pour recipes
-    // execute_recipe(recipes, 0);
-    // execute_recipe(recipes, 1);
-
-    // CURRENT_STATE = get_current_state();
-    // helper_print_state(CURRENT_STATE);
-    // // change recipe!
-    // recipes[0].on_pre_mix = calibrate_quickly;
-    // recipes[0].on_post_mix = surprise_stir;
-    // printk("\n=== AFTER SWAPPING CALLBACKS ===\n");
-    // execute_recipe(recipes, 0);
 
     // if 'random' liquid has less than 'random' ml left in container
     // enter panic mode
