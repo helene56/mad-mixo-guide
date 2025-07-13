@@ -39,19 +39,20 @@ enum drink_states
     AFTERMIX
 };
 enum drink_states CURRENT_MIX = PREMIX;
-
+// groups and input
 static lv_group_t *g;
 lv_indev_t *button_indev;
 lv_indev_data_t *button_data;
-
+// objects on screen
 static lv_obj_t *menu_list;
 static lv_obj_t *drink_status_label;
-
+static lv_obj_t *back_btn;
 // screens
 static lv_obj_t *scr_1;
 static lv_obj_t *scr_2;
 // progress bar
 static lv_obj_t *bar;
+
 
 typedef void (*pre_mix_cb)(lv_event_t *e);
 typedef void (*mix_cb)(lv_event_t *e);
@@ -199,6 +200,8 @@ static void event_finish_handler(lv_event_t *e)
     if (code == LV_EVENT_PRESSED && drink_finished)
     {
         lv_scr_load(scr_1);
+        lv_obj_t *first_btn = lv_obj_get_child(menu_list, 0);
+        lv_group_focus_obj(first_btn);
         lv_bar_set_value(bar, 0, LV_ANIM_OFF);
         drink_finished = false;
     }
@@ -208,17 +211,17 @@ void init_make_drink_screen()
 {
     scr_2 = lv_obj_create(NULL);
     // Add a proper button (instead of making the screen clickable)
-    lv_obj_t *btn = lv_btn_create(scr_2);
-    lv_obj_set_size(btn, 35, 35);
-    lv_obj_t *btn_label = lv_label_create(btn);
+    back_btn = lv_btn_create(scr_2);
+    lv_obj_set_size(back_btn, 35, 35);
+    lv_obj_t *btn_label = lv_label_create(back_btn);
     lv_label_set_text(btn_label, LV_SYMBOL_LEFT);
     lv_obj_center(btn_label);
-    lv_obj_align_to(btn, NULL, LV_ALIGN_TOP_LEFT, 20, 10);
-    lv_obj_set_style_bg_color(btn, lv_palette_main(LV_PALETTE_GREY), LV_STATE_DEFAULT);
+    lv_obj_align_to(back_btn, NULL, LV_ALIGN_TOP_LEFT, 20, 10);
+    lv_obj_set_style_bg_color(back_btn, lv_palette_main(LV_PALETTE_GREY), LV_STATE_DEFAULT);
     // Add the button to the input group
-    lv_group_add_obj(g, btn);
+    lv_group_add_obj(g, back_btn);
     // Add event to the button (not the screen)
-    lv_obj_add_event_cb(btn, event_finish_handler, LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(back_btn, event_finish_handler, LV_EVENT_PRESSED, NULL);
 
     drink_status_label = lv_label_create(scr_2);
     lv_obj_set_width(drink_status_label, 200);
@@ -253,6 +256,57 @@ void create_progress_bar()
     lv_obj_center(bar);
     lv_obj_align_to(bar, NULL, LV_ALIGN_BOTTOM_MID, 0, -20);
     lv_bar_set_value(bar, 0, LV_ANIM_ON);
+}
+
+void my_timer(lv_timer_t *timer)
+{
+    /* Use the user_data */
+    timer_user_data *user_data = lv_timer_get_user_data(timer);
+    lv_event_t *event = user_data->user_event;
+    printf("my_timer called\n");
+    // printf("Timer call: recipe = %p, mix = %d\n", user_data->user_recipe, CURRENT_MIX);
+    if (CURRENT_MIX == MIX)
+    {
+        if (user_data->user_recipe->on_mix)
+        {
+            user_data->user_recipe->on_mix(event);
+            lv_bar_set_value(bar, 66, LV_ANIM_ON);
+        }
+        CURRENT_MIX = AFTERMIX;
+    }
+    else if (CURRENT_MIX == AFTERMIX && !drink_finished)
+    {
+        if (user_data->user_recipe->on_post_mix)
+        {
+            user_data->user_recipe->on_post_mix(event);
+            lv_bar_set_value(bar, 93, LV_ANIM_ON);
+            drink_finished = true;
+        }
+    }
+    else if (drink_finished)
+    {
+        lv_label_set_text(drink_status_label, "Drink finished");
+        lv_bar_set_value(bar, 100, LV_ANIM_ON);
+    }
+}
+
+void execute_one_recipe(const potion_recipes *recipe, lv_event_t *e)
+{
+    my_user_data.user_event = e;
+    my_user_data.user_recipe = recipe;
+
+    lv_scr_load(scr_2);
+    lv_group_focus_obj(back_btn);
+    lv_timer_t *timer = lv_timer_create(my_timer, 2500, &my_user_data);
+
+    if (recipe->on_pre_mix)
+    {
+        recipe->on_pre_mix(e);
+        CURRENT_MIX = MIX;
+        lv_bar_set_value(bar, 33, LV_ANIM_ON);
+    }
+    // TODO: replace 3 with a count maybe of recipes or?
+    lv_timer_set_repeat_count(timer, 3);
 }
 
 void lv_make_drink_screen(lv_event_t *e)
@@ -313,56 +367,11 @@ void lv_menu_list(potion_recipes *recipes, size_t recipes_size)
         lv_obj_add_event_cb(btn, event_handler, LV_EVENT_PRESSED, NULL);
     }
     lv_scr_load(scr_1);
+    lv_obj_t *first_btn = lv_obj_get_child(menu_list, 0);
+    lv_group_focus_obj(first_btn);
 }
 
-void my_timer(lv_timer_t *timer)
-{
-    /* Use the user_data */
-    timer_user_data *user_data = lv_timer_get_user_data(timer);
-    lv_event_t *event = user_data->user_event;
-    printf("my_timer called\n");
-    // printf("Timer call: recipe = %p, mix = %d\n", user_data->user_recipe, CURRENT_MIX);
-    if (CURRENT_MIX == MIX)
-    {
-        if (user_data->user_recipe->on_mix)
-        {
-            user_data->user_recipe->on_mix(event);
-            lv_bar_set_value(bar, 66, LV_ANIM_ON);
-        }
-        CURRENT_MIX = AFTERMIX;
-    }
-    else if (CURRENT_MIX == AFTERMIX && !drink_finished)
-    {
-        if (user_data->user_recipe->on_post_mix)
-        {
-            user_data->user_recipe->on_post_mix(event);
-            lv_bar_set_value(bar, 93, LV_ANIM_ON);
-            drink_finished = true;
-        }
-    }
-    else if (drink_finished)
-    {
-        lv_label_set_text(drink_status_label, "Drink finished");
-        lv_bar_set_value(bar, 100, LV_ANIM_ON);
-    }
-}
 
-void execute_one_recipe(const potion_recipes *recipe, lv_event_t *e)
-{
-    my_user_data.user_event = e;
-    my_user_data.user_recipe = recipe;
-
-    lv_scr_load(scr_2);
-    lv_timer_t *timer = lv_timer_create(my_timer, 2500, &my_user_data);
-
-    if (recipe->on_pre_mix)
-    {
-        recipe->on_pre_mix(e);
-        CURRENT_MIX = MIX;
-        lv_bar_set_value(bar, 33, LV_ANIM_ON);
-    }
-    lv_timer_set_repeat_count(timer, 3);
-}
 
 int main(void)
 {
