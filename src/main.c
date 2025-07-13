@@ -53,7 +53,6 @@ static lv_obj_t *scr_2;
 // progress bar
 static lv_obj_t *bar;
 
-
 typedef void (*pre_mix_cb)(lv_event_t *e);
 typedef void (*mix_cb)(lv_event_t *e);
 typedef void (*post_mix_cb)(lv_event_t *e);
@@ -201,7 +200,7 @@ static void event_finish_handler(lv_event_t *e)
     {
         // Clear focus state from all buttons in menu_list
         uint32_t count = lv_obj_get_child_cnt(menu_list);
-        for (uint32_t i = 0; i < count; i++) 
+        for (uint32_t i = 0; i < count; i++)
         {
             lv_obj_t *btn = lv_obj_get_child(menu_list, i);
             lv_obj_clear_state(btn, LV_STATE_FOCUSED | LV_STATE_EDITED | LV_STATE_PRESSED);
@@ -358,7 +357,7 @@ void lv_menu_list(potion_recipes *recipes, size_t recipes_size)
     menu_list = lv_list_create(scr_1);
     // lv_group_add_obj(g, menu_list); // is this needed?
     lv_obj_set_size(menu_list, lv_pct(100), lv_pct(100));
-    
+
     lv_obj_center(menu_list);
     // set style
     static lv_style_t style;
@@ -375,7 +374,8 @@ void lv_menu_list(potion_recipes *recipes, size_t recipes_size)
         lv_obj_set_size(btn, lv_pct(100), lv_pct(30));
         // lv_obj_update_layout(btn); // to get height
         lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
-        lv_obj_set_style_pad_top(btn, 42 - 12, 0); // Add 10px padding at the top
+        const int32_t btn_height = 42;
+        lv_obj_set_style_pad_top(btn, btn_height - 12, 0);
         lv_group_add_obj(g, btn);
         lv_obj_set_user_data(btn, &recipes[i]); // Explicitly set
         lv_obj_add_event_cb(btn, event_handler, LV_EVENT_PRESSED, NULL);
@@ -384,8 +384,6 @@ void lv_menu_list(potion_recipes *recipes, size_t recipes_size)
     lv_obj_t *first_btn = lv_obj_get_child(menu_list, 0);
     lv_group_focus_obj(first_btn);
 }
-
-
 
 int main(void)
 {
@@ -400,10 +398,11 @@ int main(void)
     }
     // add recipes
     // recipes
-    static const potion_recipes vodka_lime_recipe = {.name = "vodka lime", .on_pre_mix = calibrate, .on_mix = mix_vodka_lime, .on_post_mix = pump_citrus};
-    static const potion_recipes gin_recipe = {.name = "gin tonic", .on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir};
-    static const potion_recipes unknown_recipe = {.name = "Aw@k3#d", .on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir};
-    static potion_recipes recipes[] = {vodka_lime_recipe, gin_recipe, unknown_recipe};
+    static potion_recipes recipes[] = {
+        {.name = "vodka lime", .on_pre_mix = calibrate, .on_mix = mix_vodka_lime, .on_post_mix = pump_citrus},
+        {.name = "gin tonic", .on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir},
+        {.name = "Aw@k3#d", .on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir}
+    };
     // table test
     size_t recipes_size = sizeof(recipes) / sizeof(recipes[0]);
     init_encoder();
