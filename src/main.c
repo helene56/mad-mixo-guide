@@ -199,9 +199,22 @@ static void event_finish_handler(lv_event_t *e)
 
     if (code == LV_EVENT_PRESSED && drink_finished)
     {
+        // Clear focus state from all buttons in menu_list
+        uint32_t count = lv_obj_get_child_cnt(menu_list);
+        for (uint32_t i = 0; i < count; i++) 
+        {
+            lv_obj_t *btn = lv_obj_get_child(menu_list, i);
+            lv_obj_clear_state(btn, LV_STATE_FOCUSED | LV_STATE_EDITED | LV_STATE_PRESSED);
+        }
+
+        // Clear the currently focused object in group
+        lv_group_focus_obj(NULL);
+
         lv_scr_load(scr_1);
+
         lv_obj_t *first_btn = lv_obj_get_child(menu_list, 0);
         lv_group_focus_obj(first_btn);
+
         lv_bar_set_value(bar, 0, LV_ANIM_OFF);
         drink_finished = false;
     }
@@ -343,8 +356,9 @@ void lv_menu_list(potion_recipes *recipes, size_t recipes_size)
     /*Create a list*/
     scr_1 = lv_obj_create(NULL);
     menu_list = lv_list_create(scr_1);
-    lv_group_add_obj(g, menu_list);
+    // lv_group_add_obj(g, menu_list); // is this needed?
     lv_obj_set_size(menu_list, lv_pct(100), lv_pct(100));
+    
     lv_obj_center(menu_list);
     // set style
     static lv_style_t style;
