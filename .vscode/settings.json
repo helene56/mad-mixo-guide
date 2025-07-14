@@ -3,6 +3,7 @@
         "${workspaceFolder}"
     ],
     "files.associations": {
-        "log.h": "c"
+        "log.h": "c",
+        "chosen_drinks.h": "c"
     }
 }
