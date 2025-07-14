@@ -8,10 +8,10 @@
 #include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
 #include <string.h>
-#include <zephyr/drivers/uart.h>
 // user lib
 #include "../lib/chosen_drinks.h"
 #include "../lib/mood_states.h"
+#include "../lib/temperature_sensor.h"
 // lvgl
 #include <lvgl.h>
 // display
@@ -25,6 +25,8 @@
 
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 LOG_MODULE_REGISTER(app);
+
+#define SHOW_SENSOR_TEMP
 
 static const struct device *lvgl_encoder =
     DEVICE_DT_GET(DT_COMPAT_GET_ANY_STATUS_OKAY(zephyr_lvgl_encoder_input));
@@ -46,10 +48,12 @@ lv_indev_data_t *button_data;
 // objects on screen
 static lv_obj_t *menu_list;
 static lv_obj_t *drink_status_label;
+static lv_obj_t *temp_status_label;
 static lv_obj_t *back_btn;
 // screens
 static lv_obj_t *scr_1;
 static lv_obj_t *scr_2;
+static lv_obj_t *scr_3;
 // progress bar
 static lv_obj_t *bar;
 
@@ -242,6 +246,27 @@ void init_make_drink_screen()
     // set button as back button from last message
 }
 
+void my_temp_timer(lv_timer_t *timer)
+{
+    if (temp_status_buffer[0] != '\0')
+    {
+        lv_label_set_text(temp_status_label, temp_status_buffer);
+    }
+    
+}
+
+void init_make_temperature_screen()
+{
+    scr_3 = lv_obj_create(NULL);
+    temp_status_label = lv_label_create(scr_3);
+    lv_obj_set_width(temp_status_label, 200);
+    lv_obj_align(temp_status_label, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_set_style_text_font(temp_status_label, &lv_font_montserrat_24, 0);
+    lv_timer_t * timer = lv_timer_create(my_temp_timer, 10000,  NULL);
+    lv_timer_ready(timer);
+    lv_scr_load(scr_3);
+}
+
 void create_progress_bar()
 {
     static lv_style_t style_bg;
@@ -302,7 +327,7 @@ void my_timer(lv_timer_t *timer)
     }
 }
 
-void execute_one_recipe(const potion_recipes *recipe, lv_event_t *e)
+void execute_one_recipe(potion_recipes *recipe, lv_event_t *e)
 {
     my_user_data.user_event = e;
     my_user_data.user_recipe = recipe;
@@ -405,10 +430,16 @@ int main(void)
     };
     // table test
     size_t recipes_size = sizeof(recipes) / sizeof(recipes[0]);
+    #ifndef SHOW_SENSOR_TEMP
     init_encoder();
     init_make_drink_screen();
     create_progress_bar();
     lv_menu_list(recipes, recipes_size);
+    #endif
+    #ifdef SHOW_SENSOR_TEMP
+    init_make_temperature_screen();
+    #endif
+
     lv_timer_handler();
     display_blanking_off(display_dev);
 
@@ -423,6 +454,9 @@ int main(void)
                filled_containers[i].leftover);
     }
 
+
+    init_temp();
+    start_response = true;
     while (1)
     {
         lv_timer_handler();
