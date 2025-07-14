@@ -151,7 +151,7 @@ void surprise_stir(lv_event_t *e)
 {
     random_num_temp = (random_num_temp ^ k_uptime_get()) & 0x7;
     int max_seconds = 45;
-    random_num_temp %= 45;
+    random_num_temp %= max_seconds;
     if (random_num_temp < 1)
     {
         random_num_temp = 5;
@@ -399,6 +399,20 @@ void lv_menu_list(potion_recipes *recipes, size_t recipes_size)
         lv_obj_set_user_data(btn, &recipes[i]); // Explicitly set
         lv_obj_add_event_cb(btn, event_handler, LV_EVENT_PRESSED, NULL);
     }
+    // user add recipes section of the menu
+    lv_list_add_text(menu_list, "user recipes");
+    // add recipes button
+    btn = lv_list_add_button(menu_list, NULL, "add recipe");
+    lv_obj_set_style_text_font(btn, &lv_font_montserrat_24, 0);
+    lv_obj_set_size(btn, lv_pct(100), lv_pct(30));
+    lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
+    const int32_t btn_height = 42;
+    lv_obj_set_style_pad_top(btn, btn_height - 12, 0);
+    lv_group_add_obj(g, btn);
+    lv_obj_add_event_cb(btn, event_handler, LV_EVENT_PRESSED, NULL);
+    
+
+    // load screen
     lv_scr_load(scr_1);
     lv_obj_t *first_btn = lv_obj_get_child(menu_list, 0);
     lv_group_focus_obj(first_btn);
