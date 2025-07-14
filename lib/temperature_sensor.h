@@ -6,8 +6,8 @@
 extern bool start_response;
 extern bool sensor_response;
 extern char temp_status_buffer[20];
+extern int32_t random_num_temp;
 
-void temp_sensor_isr(const struct device *dev, struct gpio_callback *cb, uint32_t pins);
 void read_temp();
 void init_temp();
 #endif // TEMPERATURE_SENSOR
