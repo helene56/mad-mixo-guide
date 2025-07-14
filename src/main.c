@@ -26,7 +26,7 @@
 #define LOG_LEVEL CONFIG_LOG_DEFAULT_LEVEL
 LOG_MODULE_REGISTER(app);
 
-#define SHOW_SENSOR_TEMP
+// #define SHOW_SENSOR_TEMP
 
 static const struct device *lvgl_encoder =
     DEVICE_DT_GET(DT_COMPAT_GET_ANY_STATUS_OKAY(zephyr_lvgl_encoder_input));
@@ -149,20 +149,15 @@ void calibrate_quickly(lv_event_t *e)
 
 void surprise_stir(lv_event_t *e)
 {
-    // get temperature sensor value or maybe another sensor?
-    // use that to produce a random value 3 - 15 seconds
-    int random_val = 25; // get sensor value here
-    int offset = (random_val % 5) - 2;
-    if (random_val > 15)
+    random_num_temp = (random_num_temp ^ k_uptime_get()) & 0x7;
+    int max_seconds = 45;
+    random_num_temp %= 45;
+    if (random_num_temp < 1)
     {
-        random_val = 15;
-    }
-    else
-    {
-        random_val += offset;
+        random_num_temp = 5;
     }
 
-    stir(random_val);
+    stir(random_num_temp);
 }
 
 void mix_vodka_lime(lv_event_t *e)
@@ -252,7 +247,6 @@ void my_temp_timer(lv_timer_t *timer)
     {
         lv_label_set_text(temp_status_label, temp_status_buffer);
     }
-    
 }
 
 void init_make_temperature_screen()
@@ -262,7 +256,7 @@ void init_make_temperature_screen()
     lv_obj_set_width(temp_status_label, 200);
     lv_obj_align(temp_status_label, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_style_text_font(temp_status_label, &lv_font_montserrat_24, 0);
-    lv_timer_t * timer = lv_timer_create(my_temp_timer, 10000,  NULL);
+    lv_timer_t *timer = lv_timer_create(my_temp_timer, 10000, NULL);
     lv_timer_ready(timer);
     lv_scr_load(scr_3);
 }
@@ -426,19 +420,18 @@ int main(void)
     static potion_recipes recipes[] = {
         {.name = "vodka lime", .on_pre_mix = calibrate, .on_mix = mix_vodka_lime, .on_post_mix = pump_citrus},
         {.name = "gin tonic", .on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir},
-        {.name = "Aw@k3#d", .on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir}
-    };
+        {.name = "Aw@k3#d", .on_pre_mix = calibrate, .on_mix = mix_gin_tonic, .on_post_mix = surprise_stir}};
     // table test
     size_t recipes_size = sizeof(recipes) / sizeof(recipes[0]);
-    #ifndef SHOW_SENSOR_TEMP
+#ifndef SHOW_SENSOR_TEMP
     init_encoder();
     init_make_drink_screen();
     create_progress_bar();
     lv_menu_list(recipes, recipes_size);
-    #endif
-    #ifdef SHOW_SENSOR_TEMP
+#endif
+#ifdef SHOW_SENSOR_TEMP
     init_make_temperature_screen();
-    #endif
+#endif
 
     lv_timer_handler();
     display_blanking_off(display_dev);
@@ -454,9 +447,7 @@ int main(void)
                filled_containers[i].leftover);
     }
 
-
     init_temp();
-    start_response = true;
     while (1)
     {
         lv_timer_handler();
