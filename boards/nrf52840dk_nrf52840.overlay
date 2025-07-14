@@ -104,6 +104,13 @@
         button-input-code = <INPUT_BTN_0>;
     };
 
+    dht0: dht_0 {
+        status = "okay";
+        compatible = "aosong,dht";
+        dio-gpios = <&gpio0 28 GPIO_ACTIVE_LOW>;
+        dht22;
+    };
+
 
     chosen {
         zephyr,display = &st7789v_nrf52840;
