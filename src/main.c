@@ -49,11 +49,13 @@ lv_indev_data_t *button_data;
 static lv_obj_t *menu_list;
 static lv_obj_t *drink_status_label;
 static lv_obj_t *temp_status_label;
+static lv_obj_t *add_user_recipe_label;
 static lv_obj_t *back_btn;
 // screens
 static lv_obj_t *scr_1;
 static lv_obj_t *scr_2;
 static lv_obj_t *scr_3;
+static lv_obj_t *scr_temp;
 // progress bar
 static lv_obj_t *bar;
 
@@ -251,14 +253,64 @@ void my_temp_timer(lv_timer_t *timer)
 
 void init_make_temperature_screen()
 {
-    scr_3 = lv_obj_create(NULL);
-    temp_status_label = lv_label_create(scr_3);
+    scr_temp = lv_obj_create(NULL);
+    temp_status_label = lv_label_create(scr_temp);
     lv_obj_set_width(temp_status_label, 200);
     lv_obj_align(temp_status_label, LV_ALIGN_CENTER, 0, 0);
     lv_obj_set_style_text_font(temp_status_label, &lv_font_montserrat_24, 0);
     lv_timer_t *timer = lv_timer_create(my_temp_timer, 10000, NULL);
     lv_timer_ready(timer);
-    lv_scr_load(scr_3);
+    lv_scr_load(scr_temp);
+}
+
+
+static const char * btnm_map[] = {"1", "2", "3", "4", "5", "\n",
+                                  "6", "7", "8", "9", "0", "\n",
+                                  "Action1", "Action2", ""
+                                 };
+
+
+static void event_handler_btn_map(lv_event_t * e)
+{
+    lv_obj_t * obj = lv_event_get_target_obj(e);
+    uint32_t id = lv_buttonmatrix_get_selected_button(obj);
+    bool prev = id == 0;
+    bool next = id == 6;
+    if(prev || next) 
+    {
+        /*Find the checked button*/
+        uint32_t i;
+        for(i = 1; i < 7; i++) 
+        {
+            if(lv_buttonmatrix_has_button_ctrl(obj, i, LV_BUTTONMATRIX_CTRL_CHECKED)) break;
+        }
+
+        if(prev && i > 1) i--;
+        else if(next && i < 5) i++;
+
+        lv_buttonmatrix_set_button_ctrl(obj, i, LV_BUTTONMATRIX_CTRL_CHECKED);
+        // lv_buttonmatrix_set_selected_button(obj, i);
+        
+    }
+}
+
+
+void init_add_user_screen()
+{
+    scr_3 = lv_obj_create(NULL);
+    add_user_recipe_label = lv_label_create(scr_3);
+    lv_label_set_text(add_user_recipe_label, "Choose first drink");
+    lv_obj_align(temp_status_label, LV_ALIGN_TOP_MID, 0, 0);
+    lv_obj_set_style_text_font(temp_status_label, &lv_font_montserrat_24, 0);
+    
+    lv_obj_t * btnm1 = lv_buttonmatrix_create(scr_3);
+    lv_buttonmatrix_set_map(btnm1, btnm_map);
+    lv_buttonmatrix_set_button_ctrl(btnm1, 10, LV_BUTTONMATRIX_CTRL_CHECKABLE);
+    lv_buttonmatrix_set_button_ctrl(btnm1, 11, LV_BUTTONMATRIX_CTRL_CHECKED);
+    lv_obj_align(btnm1, LV_ALIGN_CENTER, 0, 0);
+    lv_obj_add_event_cb(btnm1, event_handler_btn_map, LV_EVENT_PRESSED, NULL);
+    // Add the buttonmatrix to the input group
+    lv_group_add_obj(g, btnm1);
 }
 
 void create_progress_bar()
@@ -361,6 +413,22 @@ static void event_handler(lv_event_t *e)
     }
 }
 
+static void event_handler_add_recipe(lv_event_t *e)
+{
+    lv_event_code_t code = lv_event_get_code(e);
+    lv_obj_t *obj = lv_event_get_target_obj(e);
+
+    if (code == LV_EVENT_PRESSED && !drink_finished)
+    {
+
+        LV_LOG_USER("Clicked: %s", lv_list_get_button_text(menu_list, obj));
+        LOG_INF("Clicked: %s", lv_list_get_button_text(menu_list, obj));
+        add_recipe(e);
+    }
+    
+}
+
+
 void init_encoder()
 {
     g = lv_group_create();
@@ -386,6 +454,7 @@ void lv_menu_list(potion_recipes *recipes, size_t recipes_size)
     /*Add buttons to the list*/
     lv_obj_t *btn;
     // buttons
+    const int32_t btn_height = 42;
     for (int i = 0; i < recipes_size; i++)
     {
         btn = lv_list_add_button(menu_list, NULL, recipes[i].name);
@@ -393,7 +462,6 @@ void lv_menu_list(potion_recipes *recipes, size_t recipes_size)
         lv_obj_set_size(btn, lv_pct(100), lv_pct(30));
         // lv_obj_update_layout(btn); // to get height
         lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
-        const int32_t btn_height = 42;
         lv_obj_set_style_pad_top(btn, btn_height - 12, 0);
         lv_group_add_obj(g, btn);
         lv_obj_set_user_data(btn, &recipes[i]); // Explicitly set
@@ -406,10 +474,9 @@ void lv_menu_list(potion_recipes *recipes, size_t recipes_size)
     lv_obj_set_style_text_font(btn, &lv_font_montserrat_24, 0);
     lv_obj_set_size(btn, lv_pct(100), lv_pct(30));
     lv_obj_set_style_text_align(btn, LV_TEXT_ALIGN_CENTER, 0);
-    const int32_t btn_height = 42;
     lv_obj_set_style_pad_top(btn, btn_height - 12, 0);
     lv_group_add_obj(g, btn);
-    lv_obj_add_event_cb(btn, event_handler, LV_EVENT_PRESSED, NULL);
+    lv_obj_add_event_cb(btn, event_handler_add_recipe, LV_EVENT_PRESSED, NULL);
     
 
     // load screen
